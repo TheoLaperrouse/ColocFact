@@ -7,10 +7,10 @@ node_modules/
 .env.*.local
 
 # Database
-backend/database/*.sqlite
+server/database/*.sqlite
 
 # Build output
-frontend/dist/
+client/dist/
 
 # Logs
 *.log
