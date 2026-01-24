@@ -1,0 +1,21 @@
+# railway.toml
+
+[phases.setup]
+  nixPkgs = ['nodejs_22']       
+  
+[phases.install]
+  cmds = [
+    "cd client && npm ci --include=dev",   # ou yarn install / pnpm install --frozen-lockfile
+    "cd ../server && npm ci"
+  ]
+
+[phases.build]
+  cmds = [
+    "cd client && npm run build",          # adapte si c'est yarn build, pnpm build, etc.
+    "echo 'Frontend build terminé → dist devrait exister'",
+    "ls -la ../client/dist || echo 'dist introuvable – vérifie le script build !'"
+  ]
+
+
+[start]
+  cmd = "cd server && npm start"  
