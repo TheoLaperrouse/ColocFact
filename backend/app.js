@@ -20,9 +20,20 @@ app.use(cors({
   credentials: true
 }));
 
+
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use(
+  express.static(path.join(__dirname, "../frontend/dist"))
+)
+
+app.get("*", (req, res) => {
+  res.sendFile(
+    path.join(__dirname, "../frontend/dist/index.html")
+  )
+})
 
 // API Routes
 app.use('/api/auth', authRoutes);
