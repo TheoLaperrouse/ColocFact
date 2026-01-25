@@ -1,21 +1,21 @@
-# railway.toml
+[build]
+builder = "nixpacks"
 
+[build.nixpacks]
+plan = """
 [phases.setup]
-  nixPkgs = ['nodejs_22']       
-  
+nixPkgs = ['nodejs_20']
+
 [phases.install]
-  cmds = [
-    "cd client && npm ci --include=dev",   # ou yarn install / pnpm install --frozen-lockfile
-    "cd ../server && npm ci"
-  ]
+cmds = ['cd client && npm ci', 'cd server && npm ci']
 
 [phases.build]
-  cmds = [
-    "cd client && npm run build",          # adapte si c'est yarn build, pnpm build, etc.
-    "echo 'Frontend build terminé → dist devrait exister'",
-    "ls -la ../client/dist || echo 'dist introuvable – vérifie le script build !'"
-  ]
+cmds = ['cd client && npm run build']
+"""
 
-
-[start]
-  cmd = "cd server && npm start"  
+[deploy]
+startCommand = "cd server && npm start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

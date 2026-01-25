@@ -16,25 +16,18 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL || true // Allow same-origin in production
+    : 'http://localhost:5173',
   credentials: true
-}));
+};
+app.use(cors(corsOptions));
 
 
 // Body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-app.use(
-  express.static(path.join(__dirname, "../client/dist"))
-)
-
-app.get("*", (req, res) => {
-  res.sendFile(
-    path.join(__dirname, "../client/dist/index.html")
-  )
-})
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -48,6 +41,17 @@ app.use('/api/notifications', notificationRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Serve static files from the Vue app in production
+if (process.env.NODE_ENV === 'production') {
+  const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientDistPath));
+
+  // Handle SPA routing - serve index.html for all non-API routes
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
