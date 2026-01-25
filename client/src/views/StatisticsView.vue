@@ -214,19 +214,15 @@ const monthlyStats = ref({ year: new Date().getFullYear(), months: [] })
 const memberStats = ref([])
 
 const categoryLabels = {
-  groceries: 'Courses',
-  utilities: 'Charges',
-  rent: 'Loyer',
-  internet: 'Internet',
-  entertainment: 'Loisirs',
-  transport: 'Transport',
-  household: 'Maison',
+  water: 'Eau',
+  electricity: 'Électricité',
+  gas: 'Gaz',
+  home_insurance: 'Assurance Habitation',
   other: 'Autre'
 }
 
 const categoryColors = [
-  '#3A7DFF', '#2ECC71', '#F4C430', '#FF6B6B',
-  '#8E7CF0', '#ec4899', '#06b6d4', '#7A7A7A'
+  '#3A7DFF', '#F4C430', '#FF6B6B', '#8E7CF0', '#7A7A7A'
 ]
 
 onMounted(async () => {

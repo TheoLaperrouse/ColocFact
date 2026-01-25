@@ -30,13 +30,10 @@ const Expense = sequelize.define('Expense', {
   },
   category: {
     type: DataTypes.ENUM(
-      'groceries',
-      'utilities',
-      'rent',
-      'internet',
-      'entertainment',
-      'transport',
-      'household',
+      'water',
+      'electricity',
+      'gas',
+      'home_insurance',
       'other'
     ),
     defaultValue: 'other'

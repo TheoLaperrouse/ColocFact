@@ -251,13 +251,10 @@ const loading = ref(false)
 const error = ref('')
 
 const categories = [
-  { value: 'groceries', label: 'Courses' },
-  { value: 'utilities', label: 'Charges' },
-  { value: 'rent', label: 'Loyer' },
-  { value: 'internet', label: 'Internet' },
-  { value: 'entertainment', label: 'Loisirs' },
-  { value: 'transport', label: 'Transport' },
-  { value: 'household', label: 'Maison' },
+  { value: 'water', label: 'Eau' },
+  { value: 'electricity', label: 'Électricité' },
+  { value: 'gas', label: 'Gaz' },
+  { value: 'home_insurance', label: 'Assurance Habitation' },
   { value: 'other', label: 'Autre' }
 ]
 
