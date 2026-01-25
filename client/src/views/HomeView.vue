@@ -403,29 +403,29 @@ const DeviceIcon = () => h('svg', { class: 'w-6 h-6 text-white', fill: 'none', s
 
 // Data
 const steps = [
-  { title: 'Creez votre groupe', description: 'Invitez vos colocataires a rejoindre votre espace partage en quelques clics.', icon: UsersIcon },
-  { title: 'Ajoutez vos factures', description: 'Enregistrez vos factures d\'eau, electricite, gaz ou assurance en toute simplicite.', icon: ReceiptIcon },
-  { title: 'Laissez-nous calculer', description: 'L\'application calcule automatiquement qui doit combien a qui. Fini les prises de tete !', icon: CalculatorIcon }
+  { title: 'Créez votre groupe', description: 'Invitez vos colocataires à rejoindre votre espace partagé en quelques clics.', icon: UsersIcon },
+  { title: 'Ajoutez vos factures', description: 'Enregistrez vos factures d\'eau, électricité, gaz ou assurance en toute simplicité.', icon: ReceiptIcon },
+  { title: 'Laissez-nous calculer', description: 'L\'application calcule automatiquement qui doit combien à qui. Fini les prises de tête !', icon: CalculatorIcon }
 ]
 
 const features = [
-  { title: 'Statistiques detaillees', description: 'Visualisez vos depenses par categorie et par mois avec des graphiques clairs.', icon: ChartIcon },
-  { title: 'Notifications', description: 'Recevez des alertes quand une nouvelle facture est ajoutee ou qu\'un paiement est attendu.', icon: BellIcon },
-  { title: 'Securise', description: 'Vos donnees sont protegees et accessibles uniquement par les membres de votre groupe.', icon: LockIcon },
+  { title: 'Statistiques détaillées', description: 'Visualisez vos dépenses par catégorie et par mois avec des graphiques clairs.', icon: ChartIcon },
+  { title: 'Notifications', description: 'Recevez des alertes quand une nouvelle facture est ajoutée ou qu\'un paiement est attendu.', icon: BellIcon },
+  { title: 'Securisé', description: 'Vos données sont protégées et accessibles uniquement par les membres de votre groupe.', icon: LockIcon },
   { title: 'Multi-plateforme', description: 'Accessible depuis n\'importe quel appareil : ordinateur, tablette ou smartphone.', icon: DeviceIcon }
 ]
 
 const categories = [
   { name: 'Eau', emoji: '💧', bg: 'bg-blue-100' },
-  { name: 'Electricite', emoji: '💡', bg: 'bg-yellow-100' },
+  { name: 'Electricité', emoji: '💡', bg: 'bg-yellow-100' },
   { name: 'Gaz', emoji: '🔥', bg: 'bg-orange-100' },
   { name: 'Assurance', emoji: '🏠', bg: 'bg-green-100' }
 ]
 
 const testimonials = [
   { name: 'Marie L.', role: 'Etudiante', text: 'Enfin une app qui simplifie la vie en coloc ! Plus de disputes pour savoir qui a paye quoi.' },
-  { name: 'Thomas D.', role: 'Jeune actif', text: 'Interface super intuitive, je recommande a tous mes amis en colocation.' },
-  { name: 'Sophie M.', role: 'Colocataire', text: 'Le calcul automatique des remboursements, c\'est genial. On gagne un temps fou !' }
+  { name: 'Thomas D.', role: 'Jeune actif', text: 'Interface super intuitive, je recommande à tous mes amis en colocation.' },
+  { name: 'Sophie M.', role: 'Colocataire', text: 'Le calcul automatique des remboursements, c\'est génial. On gagne un temps fou !' }
 ]
 
 const activeFeature = ref(0)
