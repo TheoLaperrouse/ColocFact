@@ -1,4 +1,4 @@
-const { Group, GroupMember, User } = require('../models');
+const { Group, GroupMember, User, Expense, ExpenseShare, Payment, sequelize } = require('../models');
 
 // Get all groups for current user
 const getGroups = async (req, res, next) => {
@@ -150,7 +150,45 @@ const deleteGroup = async (req, res, next) => {
       return res.status(403).json({ error: { message: 'Only admins can delete the group' } });
     }
 
-    await group.destroy();
+    // Delete group and all related data in a transaction
+    await sequelize.transaction(async (t) => {
+      // Get all expense IDs for this group
+      const expenses = await Expense.findAll({
+        where: { groupId: group.id },
+        attributes: ['id'],
+        transaction: t
+      });
+      const expenseIds = expenses.map(e => e.id);
+
+      // Delete expense shares
+      if (expenseIds.length > 0) {
+        await ExpenseShare.destroy({
+          where: { expenseId: expenseIds },
+          transaction: t
+        });
+      }
+
+      // Delete expenses
+      await Expense.destroy({
+        where: { groupId: group.id },
+        transaction: t
+      });
+
+      // Delete payments
+      await Payment.destroy({
+        where: { groupId: group.id },
+        transaction: t
+      });
+
+      // Delete group members
+      await GroupMember.destroy({
+        where: { groupId: group.id },
+        transaction: t
+      });
+
+      // Delete the group
+      await group.destroy({ transaction: t });
+    });
 
     res.json({ message: 'Group deleted successfully' });
   } catch (error) {

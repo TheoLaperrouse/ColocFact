@@ -407,7 +407,14 @@ const deleteExpense = async (req, res, next) => {
       });
     }
 
-    await expense.destroy();
+    // Delete expense and related shares in a transaction
+    await sequelize.transaction(async (t) => {
+      await ExpenseShare.destroy({
+        where: { expenseId: id },
+        transaction: t
+      });
+      await expense.destroy({ transaction: t });
+    });
 
     res.json({ message: 'Expense deleted successfully' });
   } catch (error) {
