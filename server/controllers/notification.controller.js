@@ -1,11 +1,12 @@
 const { Notification, User } = require('../models');
 
 // Get all notifications for current user
-const getNotifications = async (req, res, next) => {
+const getNotifications = async (c) => {
   try {
-    const { unreadOnly } = req.query;
+    const userId = c.get('userId');
+    const { unreadOnly } = c.req.query();
 
-    const where = { userId: req.userId };
+    const where = { userId };
     if (unreadOnly === 'true') {
       where.isRead = false;
     }
@@ -17,94 +18,101 @@ const getNotifications = async (req, res, next) => {
     });
 
     const unreadCount = await Notification.count({
-      where: { userId: req.userId, isRead: false }
+      where: { userId, isRead: false }
     });
 
-    res.json({ notifications, unreadCount });
+    return c.json({ notifications, unreadCount });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Mark notification as read
-const markAsRead = async (req, res, next) => {
+const markAsRead = async (c) => {
   try {
-    const { id } = req.params;
+    const userId = c.get('userId');
+    const id = c.req.param('id');
 
     const notification = await Notification.findOne({
-      where: { id, userId: req.userId }
+      where: { id, userId }
     });
 
     if (!notification) {
-      return res.status(404).json({ error: { message: 'Notification not found' } });
+      return c.json({ error: { message: 'Notification not found' } }, 404);
     }
 
     await notification.update({ isRead: true });
 
-    res.json({ message: 'Notification marked as read' });
+    return c.json({ message: 'Notification marked as read' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Mark all notifications as read
-const markAllAsRead = async (req, res, next) => {
+const markAllAsRead = async (c) => {
   try {
+    const userId = c.get('userId');
+
     await Notification.update(
       { isRead: true },
-      { where: { userId: req.userId, isRead: false } }
+      { where: { userId, isRead: false } }
     );
 
-    res.json({ message: 'All notifications marked as read' });
+    return c.json({ message: 'All notifications marked as read' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Delete notification
-const deleteNotification = async (req, res, next) => {
+const deleteNotification = async (c) => {
   try {
-    const { id } = req.params;
+    const userId = c.get('userId');
+    const id = c.req.param('id');
 
     const notification = await Notification.findOne({
-      where: { id, userId: req.userId }
+      where: { id, userId }
     });
 
     if (!notification) {
-      return res.status(404).json({ error: { message: 'Notification not found' } });
+      return c.json({ error: { message: 'Notification not found' } }, 404);
     }
 
     await notification.destroy();
 
-    res.json({ message: 'Notification deleted' });
+    return c.json({ message: 'Notification deleted' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Subscribe to push notifications
-const subscribePush = async (req, res, next) => {
+const subscribePush = async (c) => {
   try {
-    const { subscription } = req.body;
+    const user = c.get('user');
+    const { subscription } = await c.req.json();
 
-    await req.user.update({
+    await user.update({
       pushSubscription: JSON.stringify(subscription)
     });
 
-    res.json({ message: 'Push subscription saved' });
+    return c.json({ message: 'Push subscription saved' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Unsubscribe from push notifications
-const unsubscribePush = async (req, res, next) => {
+const unsubscribePush = async (c) => {
   try {
-    await req.user.update({ pushSubscription: null });
+    const user = c.get('user');
 
-    res.json({ message: 'Push subscription removed' });
+    await user.update({ pushSubscription: null });
+
+    return c.json({ message: 'Push subscription removed' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 

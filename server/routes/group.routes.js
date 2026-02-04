@@ -1,78 +1,40 @@
-const express = require('express');
-const { body, param } = require('express-validator');
-const { validate } = require('../middleware/validate.middleware');
+const { Hono } = require('hono');
 const { authenticate } = require('../middleware/auth.middleware');
 const groupController = require('../controllers/group.controller');
 
-const router = express.Router();
+const router = new Hono();
 
 // All routes require authentication
-router.use(authenticate);
+router.use('*', authenticate);
 
 // Get all groups for current user
 router.get('/', groupController.getGroups);
 
 // Create new group
-router.post('/', [
-  body('name').notEmpty().withMessage('Group name is required'),
-  body('description').optional(),
-  validate
-], groupController.createGroup);
+router.post('/', groupController.createGroup);
 
 // Join group via invite code
-router.post('/join', [
-  body('inviteCode')
-    .notEmpty()
-    .withMessage('Invite code is required')
-    .isLength({ min: 8, max: 8 })
-    .withMessage('Invalid invite code format'),
-  validate
-], groupController.joinGroup);
+router.post('/join', groupController.joinGroup);
 
 // Get single group
-router.get('/:id', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  validate
-], groupController.getGroup);
+router.get('/:id', groupController.getGroup);
 
 // Update group
-router.put('/:id', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  body('name').optional().notEmpty().withMessage('Group name cannot be empty'),
-  validate
-], groupController.updateGroup);
+router.put('/:id', groupController.updateGroup);
 
 // Delete group
-router.delete('/:id', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  validate
-], groupController.deleteGroup);
+router.delete('/:id', groupController.deleteGroup);
 
 // Regenerate invite code
-router.post('/:id/invite-code', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  validate
-], groupController.regenerateInviteCode);
+router.post('/:id/invite-code', groupController.regenerateInviteCode);
 
 // Get group members
-router.get('/:id/members', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  validate
-], groupController.getMembers);
+router.get('/:id/members', groupController.getMembers);
 
 // Remove member from group
-router.delete('/:id/members/:userId', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  param('userId').isUUID().withMessage('Invalid user ID'),
-  validate
-], groupController.removeMember);
+router.delete('/:id/members/:userId', groupController.removeMember);
 
 // Update member role
-router.put('/:id/members/:userId', [
-  param('id').isUUID().withMessage('Invalid group ID'),
-  param('userId').isUUID().withMessage('Invalid user ID'),
-  body('role').isIn(['admin', 'member']).withMessage('Role must be admin or member'),
-  validate
-], groupController.updateMemberRole);
+router.put('/:id/members/:userId', groupController.updateMemberRole);
 
 module.exports = router;

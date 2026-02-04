@@ -10,15 +10,16 @@ const checkGroupMembership = async (groupId, userId) => {
 };
 
 // Get all expenses for a group
-const getExpenses = async (req, res, next) => {
+const getExpenses = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { page = 1, limit = 20, category, startDate, endDate } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { page = '1', limit = '20', category, startDate, endDate } = c.req.query();
 
     // Check membership
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Build where clause
@@ -30,7 +31,7 @@ const getExpenses = async (req, res, next) => {
       if (endDate) where.date[Op.lte] = endDate;
     }
 
-    const offset = (page - 1) * limit;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const { count, rows: expenses } = await Expense.findAndCountAll({
       where,
@@ -57,29 +58,31 @@ const getExpenses = async (req, res, next) => {
       offset: parseInt(offset)
     });
 
-    res.json({
+    return c.json({
       expenses,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         total: count,
-        pages: Math.ceil(count / limit)
+        pages: Math.ceil(count / parseInt(limit))
       }
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get single expense
-const getExpense = async (req, res, next) => {
+const getExpense = async (c) => {
   try {
-    const { groupId, id } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const id = c.req.param('id');
 
     // Check membership
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const expense = await Expense.findOne({
@@ -105,38 +108,39 @@ const getExpense = async (req, res, next) => {
     });
 
     if (!expense) {
-      return res.status(404).json({ error: { message: 'Expense not found' } });
+      return c.json({ error: { message: 'Expense not found' } }, 404);
     }
 
-    res.json({ expense });
+    return c.json({ expense });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Create expense
-const createExpense = async (req, res, next) => {
+const createExpense = async (c) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { groupId } = req.params;
-    const { amount, description, category, date, splitType, shares, paidBy } = req.body;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { amount, description, category, date, splitType, shares, paidBy } = await c.req.json();
 
     // Check membership
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
       await transaction.rollback();
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Determine who paid (default to current user)
-    const payerId = paidBy || req.userId;
+    const payerId = paidBy || userId;
 
     // Verify payer is a group member
     const payerMembership = await checkGroupMembership(groupId, payerId);
     if (!payerMembership) {
       await transaction.rollback();
-      return res.status(400).json({ error: { message: 'Payer must be a group member' } });
+      return c.json({ error: { message: 'Payer must be a group member' } }, 400);
     }
 
     // Create expense
@@ -181,9 +185,9 @@ const createExpense = async (req, res, next) => {
       const totalPercentage = shares.reduce((sum, s) => sum + s.percentage, 0);
       if (Math.abs(totalPercentage - 100) > 0.01) {
         await transaction.rollback();
-        return res.status(400).json({
+        return c.json({
           error: { message: 'Percentages must sum to 100' }
-        });
+        }, 400);
       }
 
       for (const share of shares) {
@@ -198,9 +202,9 @@ const createExpense = async (req, res, next) => {
       const totalShares = shares.reduce((sum, s) => sum + parseFloat(s.amount), 0);
       if (Math.abs(totalShares - parseFloat(amount)) > 0.01) {
         await transaction.rollback();
-        return res.status(400).json({
+        return c.json({
           error: { message: 'Share amounts must sum to total expense amount' }
-        });
+        }, 400);
       }
 
       for (const share of shares) {
@@ -237,29 +241,31 @@ const createExpense = async (req, res, next) => {
       ]
     });
 
-    res.status(201).json({
+    return c.json({
       message: 'Expense created successfully',
       expense
-    });
+    }, 201);
   } catch (error) {
     await transaction.rollback();
-    next(error);
+    throw error;
   }
 };
 
 // Update expense
-const updateExpense = async (req, res, next) => {
+const updateExpense = async (c) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { groupId, id } = req.params;
-    const { amount, description, category, date, splitType, shares, paidBy } = req.body;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const id = c.req.param('id');
+    const { amount, description, category, date, splitType, shares, paidBy } = await c.req.json();
 
     // Check membership
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
       await transaction.rollback();
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const expense = await Expense.findOne({
@@ -269,15 +275,15 @@ const updateExpense = async (req, res, next) => {
 
     if (!expense) {
       await transaction.rollback();
-      return res.status(404).json({ error: { message: 'Expense not found' } });
+      return c.json({ error: { message: 'Expense not found' } }, 404);
     }
 
     // Only payer or admin can update
-    if (expense.paidBy !== req.userId && membership.role !== 'admin') {
+    if (expense.paidBy !== userId && membership.role !== 'admin') {
       await transaction.rollback();
-      return res.status(403).json({
+      return c.json({
         error: { message: 'Only the payer or admin can update this expense' }
-      });
+      }, 403);
     }
 
     // Update expense
@@ -291,7 +297,7 @@ const updateExpense = async (req, res, next) => {
       const payerMembership = await checkGroupMembership(groupId, paidBy);
       if (!payerMembership) {
         await transaction.rollback();
-        return res.status(400).json({ error: { message: 'Payer must be a group member' } });
+        return c.json({ error: { message: 'Payer must be a group member' } }, 400);
       }
       updates.paidBy = paidBy;
     }
@@ -312,9 +318,9 @@ const updateExpense = async (req, res, next) => {
         const totalPercentage = shares.reduce((sum, s) => sum + s.percentage, 0);
         if (Math.abs(totalPercentage - 100) > 0.01) {
           await transaction.rollback();
-          return res.status(400).json({
+          return c.json({
             error: { message: 'Percentages must sum to 100' }
-          });
+          }, 400);
         }
 
         for (const share of shares) {
@@ -328,9 +334,9 @@ const updateExpense = async (req, res, next) => {
         const totalShares = shares.reduce((sum, s) => sum + parseFloat(s.amount), 0);
         if (Math.abs(totalShares - parseFloat(expenseAmount)) > 0.01) {
           await transaction.rollback();
-          return res.status(400).json({
+          return c.json({
             error: { message: 'Share amounts must sum to total expense amount' }
-          });
+          }, 400);
         }
 
         for (const share of shares) {
@@ -371,25 +377,27 @@ const updateExpense = async (req, res, next) => {
       ]
     });
 
-    res.json({
+    return c.json({
       message: 'Expense updated successfully',
       expense
     });
   } catch (error) {
     await transaction.rollback();
-    next(error);
+    throw error;
   }
 };
 
 // Delete expense
-const deleteExpense = async (req, res, next) => {
+const deleteExpense = async (c) => {
   try {
-    const { groupId, id } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const id = c.req.param('id');
 
     // Check membership
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const expense = await Expense.findOne({
@@ -397,14 +405,14 @@ const deleteExpense = async (req, res, next) => {
     });
 
     if (!expense) {
-      return res.status(404).json({ error: { message: 'Expense not found' } });
+      return c.json({ error: { message: 'Expense not found' } }, 404);
     }
 
     // Only payer or admin can delete
-    if (expense.paidBy !== req.userId && membership.role !== 'admin') {
-      return res.status(403).json({
+    if (expense.paidBy !== userId && membership.role !== 'admin') {
+      return c.json({
         error: { message: 'Only the payer or admin can delete this expense' }
-      });
+      }, 403);
     }
 
     // Delete expense and related shares in a transaction
@@ -416,9 +424,9 @@ const deleteExpense = async (req, res, next) => {
       await expense.destroy({ transaction: t });
     });
 
-    res.json({ message: 'Expense deleted successfully' });
+    return c.json({ message: 'Expense deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 

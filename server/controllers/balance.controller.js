@@ -7,68 +7,72 @@ const checkGroupMembership = async (groupId, userId) => {
 };
 
 // Get balances for all group members
-const getBalances = async (req, res, next) => {
+const getBalances = async (c) => {
   try {
-    const { groupId } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const balances = await debtService.calculateBalances(groupId);
 
-    res.json({ balances });
+    return c.json({ balances });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get simplified debts (who owes who)
-const getDebts = async (req, res, next) => {
+const getDebts = async (c) => {
   try {
-    const { groupId } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const debts = await debtService.calculateDebts(groupId);
 
-    res.json({ debts });
+    return c.json({ debts });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get current user's debts in the group
-const getMyDebts = async (req, res, next) => {
+const getMyDebts = async (c) => {
   try {
-    const { groupId } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
-    const userDebts = await debtService.getUserDebts(groupId, req.userId);
+    const userDebts = await debtService.getUserDebts(groupId, userId);
 
-    res.json(userDebts);
+    return c.json(userDebts);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get all payments for a group
-const getPayments = async (req, res, next) => {
+const getPayments = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { status } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { status } = c.req.query();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const where = { groupId };
@@ -91,37 +95,38 @@ const getPayments = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({ payments });
+    return c.json({ payments });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Create payment
-const createPayment = async (req, res, next) => {
+const createPayment = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { toUser, amount, note, date } = req.body;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { toUser, amount, note, date } = await c.req.json();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Verify recipient is a group member
     const recipientMembership = await checkGroupMembership(groupId, toUser);
     if (!recipientMembership) {
-      return res.status(400).json({ error: { message: 'Recipient must be a group member' } });
+      return c.json({ error: { message: 'Recipient must be a group member' } }, 400);
     }
 
     // Can't pay yourself
-    if (toUser === req.userId) {
-      return res.status(400).json({ error: { message: 'Cannot create payment to yourself' } });
+    if (toUser === userId) {
+      return c.json({ error: { message: 'Cannot create payment to yourself' } }, 400);
     }
 
     const payment = await Payment.create({
       groupId,
-      fromUser: req.userId,
+      fromUser: userId,
       toUser,
       amount,
       note,
@@ -144,24 +149,26 @@ const createPayment = async (req, res, next) => {
       ]
     });
 
-    res.status(201).json({
+    return c.json({
       message: 'Payment created successfully',
       payment
-    });
+    }, 201);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Confirm or reject payment
-const updatePaymentStatus = async (req, res, next) => {
+const updatePaymentStatus = async (c) => {
   try {
-    const { groupId, id } = req.params;
-    const { status } = req.body;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const id = c.req.param('id');
+    const { status } = await c.req.json();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const payment = await Payment.findOne({
@@ -169,20 +176,20 @@ const updatePaymentStatus = async (req, res, next) => {
     });
 
     if (!payment) {
-      return res.status(404).json({ error: { message: 'Payment not found' } });
+      return c.json({ error: { message: 'Payment not found' } }, 404);
     }
 
     // Only the receiver can confirm/reject
-    if (payment.toUser !== req.userId) {
-      return res.status(403).json({
+    if (payment.toUser !== userId) {
+      return c.json({
         error: { message: 'Only the payment receiver can confirm or reject' }
-      });
+      }, 403);
     }
 
     if (payment.status !== 'pending') {
-      return res.status(400).json({
+      return c.json({
         error: { message: 'Payment has already been processed' }
-      });
+      }, 400);
     }
 
     await payment.update({ status });
@@ -202,23 +209,25 @@ const updatePaymentStatus = async (req, res, next) => {
       ]
     });
 
-    res.json({
+    return c.json({
       message: `Payment ${status}`,
       payment
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Delete payment (only pending payments by sender)
-const deletePayment = async (req, res, next) => {
+const deletePayment = async (c) => {
   try {
-    const { groupId, id } = req.params;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const id = c.req.param('id');
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const payment = await Payment.findOne({
@@ -226,27 +235,27 @@ const deletePayment = async (req, res, next) => {
     });
 
     if (!payment) {
-      return res.status(404).json({ error: { message: 'Payment not found' } });
+      return c.json({ error: { message: 'Payment not found' } }, 404);
     }
 
     // Only sender can delete, and only pending payments
-    if (payment.fromUser !== req.userId && membership.role !== 'admin') {
-      return res.status(403).json({
+    if (payment.fromUser !== userId && membership.role !== 'admin') {
+      return c.json({
         error: { message: 'Only the sender or admin can delete this payment' }
-      });
+      }, 403);
     }
 
     if (payment.status !== 'pending') {
-      return res.status(400).json({
+      return c.json({
         error: { message: 'Cannot delete a payment that has been processed' }
-      });
+      }, 400);
     }
 
     await payment.destroy();
 
-    res.json({ message: 'Payment deleted successfully' });
+    return c.json({ message: 'Payment deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 

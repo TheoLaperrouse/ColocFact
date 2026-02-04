@@ -7,14 +7,15 @@ const checkGroupMembership = async (groupId, userId) => {
 };
 
 // Get overall statistics
-const getStatistics = async (req, res, next) => {
+const getStatistics = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { startDate, endDate } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { startDate, endDate } = c.req.query();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Build date filter
@@ -62,7 +63,7 @@ const getStatistics = async (req, res, next) => {
       ]
     });
 
-    res.json({
+    return c.json({
       statistics: {
         totalExpenses: parseFloat(totalExpenses.toFixed(2)),
         expenseCount,
@@ -77,19 +78,20 @@ const getStatistics = async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get statistics by category
-const getStatisticsByCategory = async (req, res, next) => {
+const getStatisticsByCategory = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { startDate, endDate } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { startDate, endDate } = c.req.query();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Build date filter
@@ -124,21 +126,22 @@ const getStatisticsByCategory = async (req, res, next) => {
         : 0
     }));
 
-    res.json({ categories });
+    return c.json({ categories });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get statistics by month
-const getStatisticsByMonth = async (req, res, next) => {
+const getStatisticsByMonth = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { year } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { year } = c.req.query();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     const targetYear = year || new Date().getFullYear();
@@ -180,24 +183,25 @@ const getStatisticsByMonth = async (req, res, next) => {
       });
     }
 
-    res.json({
+    return c.json({
       year: parseInt(targetYear),
       months
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get statistics by member
-const getStatisticsByMember = async (req, res, next) => {
+const getStatisticsByMember = async (c) => {
   try {
-    const { groupId } = req.params;
-    const { startDate, endDate } = req.query;
+    const userId = c.get('userId');
+    const groupId = c.req.param('groupId');
+    const { startDate, endDate } = c.req.query();
 
-    const membership = await checkGroupMembership(groupId, req.userId);
+    const membership = await checkGroupMembership(groupId, userId);
     if (!membership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Build date filter
@@ -262,9 +266,9 @@ const getStatisticsByMember = async (req, res, next) => {
     // Sort by total paid
     memberStats.sort((a, b) => b.totalPaid - a.totalPaid);
 
-    res.json({ members: memberStats });
+    return c.json({ members: memberStats });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 

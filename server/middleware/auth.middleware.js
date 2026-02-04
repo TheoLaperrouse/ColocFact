@@ -2,12 +2,12 @@ const jwt = require('jsonwebtoken');
 const { jwtSecret } = require('../config/auth');
 const { User } = require('../models');
 
-const authenticate = async (req, res, next) => {
+const authenticate = async (c, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = c.req.header('authorization');
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: { message: 'Authentication required' } });
+      return c.json({ error: { message: 'Authentication required' } }, 401);
     }
 
     const token = authHeader.substring(7);
@@ -17,26 +17,26 @@ const authenticate = async (req, res, next) => {
     const user = await User.findByPk(decoded.userId);
 
     if (!user) {
-      return res.status(401).json({ error: { message: 'User not found' } });
+      return c.json({ error: { message: 'User not found' } }, 401);
     }
 
-    req.user = user;
-    req.userId = user.id;
-    next();
+    c.set('user', user);
+    c.set('userId', user.id);
+    await next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ error: { message: 'Invalid token' } });
+      return c.json({ error: { message: 'Invalid token' } }, 401);
     }
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: { message: 'Token expired' } });
+      return c.json({ error: { message: 'Token expired' } }, 401);
     }
-    next(error);
+    throw error;
   }
 };
 
-const optionalAuth = async (req, res, next) => {
+const optionalAuth = async (c, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = c.req.header('authorization');
 
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
@@ -44,13 +44,13 @@ const optionalAuth = async (req, res, next) => {
       const user = await User.findByPk(decoded.userId);
 
       if (user) {
-        req.user = user;
-        req.userId = user.id;
+        c.set('user', user);
+        c.set('userId', user.id);
       }
     }
-    next();
+    await next();
   } catch (error) {
-    next();
+    await next();
   }
 };
 

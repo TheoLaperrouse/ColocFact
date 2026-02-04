@@ -6,14 +6,14 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, jwtSecret, { expiresIn: jwtExpiresIn });
 };
 
-const register = async (req, res, next) => {
+const register = async (c) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { email, password, firstName, lastName } = await c.req.json();
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      return res.status(400).json({ error: { message: 'Email already registered' } });
+      return c.json({ error: { message: 'Email already registered' } }, 400);
     }
 
     // Create new user
@@ -26,86 +26,89 @@ const register = async (req, res, next) => {
 
     const token = generateToken(user.id);
 
-    res.status(201).json({
+    return c.json({
       message: 'User registered successfully',
       user: user.toJSON(),
       token
-    });
+    }, 201);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-const login = async (req, res, next) => {
+const login = async (c) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = await c.req.json();
 
     // Find user by email
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: { message: 'Invalid email or password' } });
+      return c.json({ error: { message: 'Invalid email or password' } }, 401);
     }
 
     // Validate password
     const isValidPassword = await user.validatePassword(password);
     if (!isValidPassword) {
-      return res.status(401).json({ error: { message: 'Invalid email or password' } });
+      return c.json({ error: { message: 'Invalid email or password' } }, 401);
     }
 
     const token = generateToken(user.id);
 
-    res.json({
+    return c.json({
       message: 'Login successful',
       user: user.toJSON(),
       token
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-const getProfile = async (req, res, next) => {
+const getProfile = async (c) => {
   try {
-    res.json({ user: req.user.toJSON() });
+    const user = c.get('user');
+    return c.json({ user: user.toJSON() });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-const updateProfile = async (req, res, next) => {
+const updateProfile = async (c) => {
   try {
-    const { firstName, lastName, avatar } = req.body;
+    const user = c.get('user');
+    const { firstName, lastName, avatar } = await c.req.json();
 
     const updates = {};
     if (firstName) updates.firstName = firstName;
     if (lastName) updates.lastName = lastName;
     if (avatar !== undefined) updates.avatar = avatar;
 
-    await req.user.update(updates);
+    await user.update(updates);
 
-    res.json({
+    return c.json({
       message: 'Profile updated successfully',
-      user: req.user.toJSON()
+      user: user.toJSON()
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
-const changePassword = async (req, res, next) => {
+const changePassword = async (c) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const user = c.get('user');
+    const { currentPassword, newPassword } = await c.req.json();
 
-    const isValidPassword = await req.user.validatePassword(currentPassword);
+    const isValidPassword = await user.validatePassword(currentPassword);
     if (!isValidPassword) {
-      return res.status(400).json({ error: { message: 'Current password is incorrect' } });
+      return c.json({ error: { message: 'Current password is incorrect' } }, 400);
     }
 
-    await req.user.update({ password: newPassword });
+    await user.update({ password: newPassword });
 
-    res.json({ message: 'Password changed successfully' });
+    return c.json({ message: 'Password changed successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 

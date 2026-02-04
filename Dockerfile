@@ -13,8 +13,9 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 # Install backend dependencies
-COPY server/package.json server/yarn.lock ./server/
-RUN cd server && yarn install --production --frozen-lockfile
+COPY yarn.lock ./
+COPY server/package.json ./server/
+RUN cd server && yarn install --frozen-lockfile --production
 
 # Copy backend source
 COPY server/ ./server/

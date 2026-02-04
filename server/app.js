@@ -1,7 +1,8 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const helmet = require('helmet');
+const { Hono } = require('hono');
+const { cors } = require('hono/cors');
+const { secureHeaders } = require('hono/secure-headers');
+const { serveStatic } = require('@hono/node-server/serve-static');
+const path = require('node:path');
 
 const authRoutes = require('./routes/auth.routes');
 const groupRoutes = require('./routes/group.routes');
@@ -10,63 +11,64 @@ const balanceRoutes = require('./routes/balance.routes');
 const statisticsRoutes = require('./routes/statistics.routes');
 const notificationRoutes = require('./routes/notification.routes');
 
-const app = express();
+const app = new Hono();
 
 // Security middleware
-app.use(helmet());
+app.use('*', secureHeaders());
 
 // CORS configuration
-const corsOptions = {
+app.use('*', cors({
   origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL || true // Allow same-origin in production
+    ? process.env.FRONTEND_URL || '*'
     : 'http://localhost:5173',
   credentials: true
-};
-app.use(cors(corsOptions));
-
-
-// Body parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+}));
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/groups', groupRoutes);
-app.use('/api/groups', expenseRoutes);
-app.use('/api/groups', balanceRoutes);
-app.use('/api/groups', statisticsRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.route('/api/auth', authRoutes);
+app.route('/api/groups', groupRoutes);
+app.route('/api/groups', expenseRoutes);
+app.route('/api/groups', balanceRoutes);
+app.route('/api/groups', statisticsRoutes);
+app.route('/api/notifications', notificationRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', (c) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Serve static files from the Vue app in production
 if (process.env.NODE_ENV === 'production') {
   const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
-  app.use(express.static(clientDistPath));
+
+  app.use('/*', serveStatic({ root: clientDistPath }));
 
   // Handle SPA routing - serve index.html for all non-API routes
-  app.get(/^(?!\/api).*/, (req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+  app.get('*', async (c) => {
+    if (c.req.path.startsWith('/api')) {
+      return c.json({ error: { message: 'Route not found' } }, 404);
+    }
+    const fs = require('node:fs');
+    const indexPath = path.join(clientDistPath, 'index.html');
+    const html = fs.readFileSync(indexPath, 'utf-8');
+    return c.html(html);
   });
 }
 
-// Error handling middleware
-app.use((err, req, res, next) => {
+// Error handling
+app.onError((err, c) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
+  return c.json({
     error: {
       message: err.message || 'Internal server error',
       ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
     }
-  });
+  }, err.status || 500);
 });
 
 // 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: { message: 'Route not found' } });
+app.notFound((c) => {
+  return c.json({ error: { message: 'Route not found' } }, 404);
 });
 
 module.exports = app;

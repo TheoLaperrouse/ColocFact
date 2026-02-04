@@ -1,40 +1,26 @@
-const express = require('express');
-const { param, body, query } = require('express-validator');
-const { validate } = require('../middleware/validate.middleware');
+const { Hono } = require('hono');
 const { authenticate } = require('../middleware/auth.middleware');
 const notificationController = require('../controllers/notification.controller');
 
-const router = express.Router();
+const router = new Hono();
 
 // All routes require authentication
-router.use(authenticate);
+router.use('*', authenticate);
 
 // Get all notifications
-router.get('/', [
-  query('unreadOnly').optional().isBoolean().withMessage('unreadOnly must be boolean'),
-  validate
-], notificationController.getNotifications);
+router.get('/', notificationController.getNotifications);
 
 // Mark notification as read
-router.put('/:id/read', [
-  param('id').isUUID().withMessage('Invalid notification ID'),
-  validate
-], notificationController.markAsRead);
+router.put('/:id/read', notificationController.markAsRead);
 
 // Mark all as read
 router.put('/read-all', notificationController.markAllAsRead);
 
 // Delete notification
-router.delete('/:id', [
-  param('id').isUUID().withMessage('Invalid notification ID'),
-  validate
-], notificationController.deleteNotification);
+router.delete('/:id', notificationController.deleteNotification);
 
 // Subscribe to push notifications
-router.post('/push/subscribe', [
-  body('subscription').notEmpty().withMessage('Subscription is required'),
-  validate
-], notificationController.subscribePush);
+router.post('/push/subscribe', notificationController.subscribePush);
 
 // Unsubscribe from push notifications
 router.post('/push/unsubscribe', notificationController.unsubscribePush);

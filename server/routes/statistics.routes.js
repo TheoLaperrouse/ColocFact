@@ -1,43 +1,22 @@
-const express = require('express');
-const { param, query } = require('express-validator');
-const { validate } = require('../middleware/validate.middleware');
+const { Hono } = require('hono');
 const { authenticate } = require('../middleware/auth.middleware');
 const statisticsController = require('../controllers/statistics.controller');
 
-const router = express.Router();
+const router = new Hono();
 
 // All routes require authentication
-router.use(authenticate);
+router.use('*', authenticate);
 
 // Get overall statistics
-router.get('/:groupId/statistics', [
-  param('groupId').isUUID().withMessage('Invalid group ID'),
-  query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-  query('endDate').optional().isISO8601().withMessage('Invalid end date'),
-  validate
-], statisticsController.getStatistics);
+router.get('/:groupId/statistics', statisticsController.getStatistics);
 
 // Get statistics by category
-router.get('/:groupId/statistics/by-category', [
-  param('groupId').isUUID().withMessage('Invalid group ID'),
-  query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-  query('endDate').optional().isISO8601().withMessage('Invalid end date'),
-  validate
-], statisticsController.getStatisticsByCategory);
+router.get('/:groupId/statistics/by-category', statisticsController.getStatisticsByCategory);
 
 // Get statistics by month
-router.get('/:groupId/statistics/by-month', [
-  param('groupId').isUUID().withMessage('Invalid group ID'),
-  query('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Invalid year'),
-  validate
-], statisticsController.getStatisticsByMonth);
+router.get('/:groupId/statistics/by-month', statisticsController.getStatisticsByMonth);
 
 // Get statistics by member
-router.get('/:groupId/statistics/by-member', [
-  param('groupId').isUUID().withMessage('Invalid group ID'),
-  query('startDate').optional().isISO8601().withMessage('Invalid start date'),
-  query('endDate').optional().isISO8601().withMessage('Invalid end date'),
-  validate
-], statisticsController.getStatisticsByMember);
+router.get('/:groupId/statistics/by-member', statisticsController.getStatisticsByMember);
 
 module.exports = router;

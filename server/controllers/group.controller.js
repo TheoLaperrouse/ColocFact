@@ -1,8 +1,9 @@
 const { Group, GroupMember, User, Expense, ExpenseShare, Payment, sequelize } = require('../models');
 
 // Get all groups for current user
-const getGroups = async (req, res, next) => {
+const getGroups = async (c) => {
   try {
+    const userId = c.get('userId');
     const groups = await Group.findAll({
       include: [
         {
@@ -18,20 +19,23 @@ const getGroups = async (req, res, next) => {
         }
       ],
       where: {
-        '$members.id$': req.userId
+        '$members.id$': userId
       }
     });
 
-    res.json({ groups });
+    return c.json({ groups });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get single group
-const getGroup = async (req, res, next) => {
+const getGroup = async (c) => {
   try {
-    const group = await Group.findByPk(req.params.id, {
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+
+    const group = await Group.findByPk(id, {
       include: [
         {
           model: User,
@@ -48,36 +52,37 @@ const getGroup = async (req, res, next) => {
     });
 
     if (!group) {
-      return res.status(404).json({ error: { message: 'Group not found' } });
+      return c.json({ error: { message: 'Group not found' } }, 404);
     }
 
     // Check if user is a member
-    const isMember = group.members.some(m => m.id === req.userId);
+    const isMember = group.members.some(m => m.id === userId);
     if (!isMember) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
-    res.json({ group });
+    return c.json({ group });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Create group
-const createGroup = async (req, res, next) => {
+const createGroup = async (c) => {
   try {
-    const { name, description } = req.body;
+    const userId = c.get('userId');
+    const { name, description } = await c.req.json();
 
     const group = await Group.create({
       name,
       description,
-      createdBy: req.userId
+      createdBy: userId
     });
 
     // Add creator as admin member
     await GroupMember.create({
       groupId: group.id,
-      userId: req.userId,
+      userId: userId,
       role: 'admin'
     });
 
@@ -93,61 +98,67 @@ const createGroup = async (req, res, next) => {
       ]
     });
 
-    res.status(201).json({
+    return c.json({
       message: 'Group created successfully',
       group
-    });
+    }, 201);
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Update group
-const updateGroup = async (req, res, next) => {
+const updateGroup = async (c) => {
   try {
-    const { name, description } = req.body;
-    const group = await Group.findByPk(req.params.id);
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+    const { name, description } = await c.req.json();
+
+    const group = await Group.findByPk(id);
 
     if (!group) {
-      return res.status(404).json({ error: { message: 'Group not found' } });
+      return c.json({ error: { message: 'Group not found' } }, 404);
     }
 
     // Check if user is admin
     const membership = await GroupMember.findOne({
-      where: { groupId: group.id, userId: req.userId }
+      where: { groupId: group.id, userId: userId }
     });
 
     if (!membership || membership.role !== 'admin') {
-      return res.status(403).json({ error: { message: 'Only admins can update the group' } });
+      return c.json({ error: { message: 'Only admins can update the group' } }, 403);
     }
 
     await group.update({ name, description });
 
-    res.json({
+    return c.json({
       message: 'Group updated successfully',
       group
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Delete group
-const deleteGroup = async (req, res, next) => {
+const deleteGroup = async (c) => {
   try {
-    const group = await Group.findByPk(req.params.id);
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+
+    const group = await Group.findByPk(id);
 
     if (!group) {
-      return res.status(404).json({ error: { message: 'Group not found' } });
+      return c.json({ error: { message: 'Group not found' } }, 404);
     }
 
     // Check if user is admin
     const membership = await GroupMember.findOne({
-      where: { groupId: group.id, userId: req.userId }
+      where: { groupId: group.id, userId: userId }
     });
 
     if (!membership || membership.role !== 'admin') {
-      return res.status(403).json({ error: { message: 'Only admins can delete the group' } });
+      return c.json({ error: { message: 'Only admins can delete the group' } }, 403);
     }
 
     // Delete group and all related data in a transaction
@@ -190,37 +201,38 @@ const deleteGroup = async (req, res, next) => {
       await group.destroy({ transaction: t });
     });
 
-    res.json({ message: 'Group deleted successfully' });
+    return c.json({ message: 'Group deleted successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Join group via invite code
-const joinGroup = async (req, res, next) => {
+const joinGroup = async (c) => {
   try {
-    const { inviteCode } = req.body;
+    const userId = c.get('userId');
+    const { inviteCode } = await c.req.json();
 
     const group = await Group.findOne({
       where: { inviteCode: inviteCode.toUpperCase() }
     });
 
     if (!group) {
-      return res.status(404).json({ error: { message: 'Invalid invite code' } });
+      return c.json({ error: { message: 'Invalid invite code' } }, 404);
     }
 
     // Check if already a member
     const existingMembership = await GroupMember.findOne({
-      where: { groupId: group.id, userId: req.userId }
+      where: { groupId: group.id, userId: userId }
     });
 
     if (existingMembership) {
-      return res.status(400).json({ error: { message: 'Already a member of this group' } });
+      return c.json({ error: { message: 'Already a member of this group' } }, 400);
     }
 
     await GroupMember.create({
       groupId: group.id,
-      userId: req.userId,
+      userId: userId,
       role: 'member'
     });
 
@@ -235,20 +247,22 @@ const joinGroup = async (req, res, next) => {
       ]
     });
 
-    res.json({
+    return c.json({
       message: 'Joined group successfully',
       group
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Get group members
-const getMembers = async (req, res, next) => {
+const getMembers = async (c) => {
   try {
+    const id = c.req.param('id');
+
     const members = await GroupMember.findAll({
-      where: { groupId: req.params.id },
+      where: { groupId: id },
       include: [
         {
           model: User,
@@ -258,32 +272,34 @@ const getMembers = async (req, res, next) => {
       ]
     });
 
-    res.json({ members });
+    return c.json({ members });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Remove member from group
-const removeMember = async (req, res, next) => {
+const removeMember = async (c) => {
   try {
-    const { id: groupId, userId } = req.params;
+    const reqUserId = c.get('userId');
+    const groupId = c.req.param('id');
+    const userId = c.req.param('userId');
 
     // Check if requester is admin
     const requesterMembership = await GroupMember.findOne({
-      where: { groupId, userId: req.userId }
+      where: { groupId, userId: reqUserId }
     });
 
     if (!requesterMembership) {
-      return res.status(403).json({ error: { message: 'Access denied' } });
+      return c.json({ error: { message: 'Access denied' } }, 403);
     }
 
     // Allow self-removal or admin removal
-    const isSelfRemoval = userId === req.userId;
+    const isSelfRemoval = userId === reqUserId;
     const isAdmin = requesterMembership.role === 'admin';
 
     if (!isSelfRemoval && !isAdmin) {
-      return res.status(403).json({ error: { message: 'Only admins can remove other members' } });
+      return c.json({ error: { message: 'Only admins can remove other members' } }, 403);
     }
 
     const membership = await GroupMember.findOne({
@@ -291,7 +307,7 @@ const removeMember = async (req, res, next) => {
     });
 
     if (!membership) {
-      return res.status(404).json({ error: { message: 'Member not found' } });
+      return c.json({ error: { message: 'Member not found' } }, 404);
     }
 
     // Don't allow removing the last admin
@@ -301,33 +317,35 @@ const removeMember = async (req, res, next) => {
       });
 
       if (adminCount <= 1) {
-        return res.status(400).json({
+        return c.json({
           error: { message: 'Cannot remove the last admin. Transfer admin rights first.' }
-        });
+        }, 400);
       }
     }
 
     await membership.destroy();
 
-    res.json({ message: 'Member removed successfully' });
+    return c.json({ message: 'Member removed successfully' });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Update member role
-const updateMemberRole = async (req, res, next) => {
+const updateMemberRole = async (c) => {
   try {
-    const { id: groupId, userId } = req.params;
-    const { role } = req.body;
+    const reqUserId = c.get('userId');
+    const groupId = c.req.param('id');
+    const userId = c.req.param('userId');
+    const { role } = await c.req.json();
 
     // Check if requester is admin
     const requesterMembership = await GroupMember.findOne({
-      where: { groupId, userId: req.userId }
+      where: { groupId, userId: reqUserId }
     });
 
     if (!requesterMembership || requesterMembership.role !== 'admin') {
-      return res.status(403).json({ error: { message: 'Only admins can change member roles' } });
+      return c.json({ error: { message: 'Only admins can change member roles' } }, 403);
     }
 
     const membership = await GroupMember.findOne({
@@ -335,36 +353,39 @@ const updateMemberRole = async (req, res, next) => {
     });
 
     if (!membership) {
-      return res.status(404).json({ error: { message: 'Member not found' } });
+      return c.json({ error: { message: 'Member not found' } }, 404);
     }
 
     await membership.update({ role });
 
-    res.json({
+    return c.json({
       message: 'Member role updated successfully',
       membership
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
 // Regenerate invite code
-const regenerateInviteCode = async (req, res, next) => {
+const regenerateInviteCode = async (c) => {
   try {
-    const group = await Group.findByPk(req.params.id);
+    const userId = c.get('userId');
+    const id = c.req.param('id');
+
+    const group = await Group.findByPk(id);
 
     if (!group) {
-      return res.status(404).json({ error: { message: 'Group not found' } });
+      return c.json({ error: { message: 'Group not found' } }, 404);
     }
 
     // Check if user is admin
     const membership = await GroupMember.findOne({
-      where: { groupId: group.id, userId: req.userId }
+      where: { groupId: group.id, userId: userId }
     });
 
     if (!membership || membership.role !== 'admin') {
-      return res.status(403).json({ error: { message: 'Only admins can regenerate invite code' } });
+      return c.json({ error: { message: 'Only admins can regenerate invite code' } }, 403);
     }
 
     const crypto = require('crypto');
@@ -372,12 +393,12 @@ const regenerateInviteCode = async (req, res, next) => {
 
     await group.update({ inviteCode: newCode });
 
-    res.json({
+    return c.json({
       message: 'Invite code regenerated successfully',
       inviteCode: newCode
     });
   } catch (error) {
-    next(error);
+    throw error;
   }
 };
 
